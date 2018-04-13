@@ -1,5 +1,7 @@
 package com.sequenceiq.cloudbreak.blueprint.sharedservice;
 
+import javax.annotation.Nonnull;
+
 import org.springframework.stereotype.Component;
 
 import com.sequenceiq.cloudbreak.domain.Blueprint;
@@ -8,7 +10,7 @@ import com.sequenceiq.cloudbreak.domain.Stack;
 @Component
 public class SharedServiceConfigsProvider {
 
-    public SharedServiceConfigs createSharedServiceConfigs(Blueprint blueprint, String ambariPassword, Stack dataLakeStack) {
+    public SharedServiceConfigs createSharedServiceConfigs(@Nonnull Blueprint blueprint, String ambariPassword, Stack dataLakeStack) {
         SharedServiceConfigs sharedServiceConfigs = new SharedServiceConfigs();
         if (dataLakeStack != null) {
             sharedServiceConfigs.setRangerAdminPassword(dataLakeStack.getCluster().getPassword());
@@ -26,7 +28,7 @@ public class SharedServiceConfigsProvider {
         return sharedServiceConfigs;
     }
 
-    public SharedServiceConfigs createSharedServiceConfigs(Stack source, Stack dataLakeStack) {
+    public SharedServiceConfigs createSharedServiceConfigs(@Nonnull Stack source, Stack dataLakeStack) {
         return createSharedServiceConfigs(source.getCluster().getBlueprint(), source.getCluster().getPassword(), dataLakeStack);
     }
 
