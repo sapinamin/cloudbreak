@@ -65,7 +65,9 @@ public class ClusterRequest implements JsonEntity {
     private String userName;
 
     @NotNull
-    @Size(max = 100, min = 5, message = "The length of the password has to be in range of 5 to 100")
+    @Size(max = 100, min = 8, message = "The length of the password has to be in range of 5 to 100")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[A-Za-z\\d]*$",
+        message = "The password have to contain at least one upper- and lowercase alphabetic character and at least one digit.")
     @ApiModelProperty(value = StackModelDescription.PASSWORD, required = true)
     private String password;
 
@@ -410,4 +412,5 @@ public class ClusterRequest implements JsonEntity {
     public void setRdsConfigNames(Set<String> rdsConfigNames) {
         this.rdsConfigNames = rdsConfigNames;
     }
+
 }
