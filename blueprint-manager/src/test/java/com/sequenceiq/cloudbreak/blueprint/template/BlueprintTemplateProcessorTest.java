@@ -33,15 +33,17 @@ import com.sequenceiq.cloudbreak.util.FileReaderUtils;
 @RunWith(MockitoJUnitRunner.class)
 public class BlueprintTemplateProcessorTest {
 
+    private static final String TEST_BLUEPRINT_FILE = "blueprints-jackson/bp-mustache-test.bp";
+
     @InjectMocks
     private final BlueprintTemplateProcessor underTest = new BlueprintTemplateProcessor();
 
     @Test
     public void testMustacheGeneratorWithSimpleUseCase() throws Exception {
-        String testBlueprint = FileReaderUtils.readFileFromClasspath("blueprints-jackson/bp-mustache-test.bp");
+        String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
-        BlueprintStackInfo blueprintStackInfo =  new BlueprintStackInfo("hdp", "2.4");
+        BlueprintStackInfo blueprintStackInfo = new BlueprintStackInfo("hdp", "2.4");
         GeneralClusterConfigs generalClusterConfigs = generalClusterConfigs();
         generalClusterConfigs.setClusterName("dummyCluster");
         generalClusterConfigs.setStackName("dummyCluster");
@@ -69,10 +71,10 @@ public class BlueprintTemplateProcessorTest {
 
     @Test
     public void testMustacheGeneratorShouldEscapeNifiHtmlBasedContentsQuotes() throws Exception {
-        String testBlueprint = FileReaderUtils.readFileFromClasspath("blueprints-jackson/bp-mustache-test.bp");
+        String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
-        BlueprintStackInfo blueprintStackInfo =  new BlueprintStackInfo("hdp", "2.4");
+        BlueprintStackInfo blueprintStackInfo = new BlueprintStackInfo("hdp", "2.4");
         GeneralClusterConfigs generalClusterConfigs = generalClusterConfigs();
         generalClusterConfigs.setClusterName("dummyCluster");
         generalClusterConfigs.setStackName("dummyCluster");
@@ -97,10 +99,10 @@ public class BlueprintTemplateProcessorTest {
 
     @Test
     public void testMustacheGeneratorForRangerRDS() throws Exception {
-        String testBlueprint = FileReaderUtils.readFileFromClasspath("blueprints-jackson/bp-mustache-test.bp");
+        String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
-        BlueprintStackInfo blueprintStackInfo =  new BlueprintStackInfo("hdp", "2.4");
+        BlueprintStackInfo blueprintStackInfo = new BlueprintStackInfo("hdp", "2.4");
 
         BlueprintPreparationObject blueprintPreparationObject = BlueprintPreparationObject.Builder.builder()
                 .withRdsConfigs(cluster.getRdsConfigs())
@@ -122,10 +124,10 @@ public class BlueprintTemplateProcessorTest {
 
     @Test
     public void testMustacheGeneratorForHiveRDS() throws Exception {
-        String testBlueprint = FileReaderUtils.readFileFromClasspath("blueprints-jackson/bp-mustache-test.bp");
+        String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
-        BlueprintStackInfo blueprintStackInfo =  new BlueprintStackInfo("hdp", "2.4");
+        BlueprintStackInfo blueprintStackInfo = new BlueprintStackInfo("hdp", "2.4");
 
         BlueprintPreparationObject blueprintPreparationObject = BlueprintPreparationObject.Builder.builder()
                 .withRdsConfigs(cluster.getRdsConfigs())
@@ -147,10 +149,10 @@ public class BlueprintTemplateProcessorTest {
 
     @Test
     public void testMustacheGeneratorForDruidRDS() throws Exception {
-        String testBlueprint = FileReaderUtils.readFileFromClasspath("blueprints-jackson/bp-mustache-test.bp");
+        String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
-        BlueprintStackInfo blueprintStackInfo =  new BlueprintStackInfo("hdp", "2.4");
+        BlueprintStackInfo blueprintStackInfo = new BlueprintStackInfo("hdp", "2.4");
 
         BlueprintPreparationObject blueprintPreparationObject = BlueprintPreparationObject.Builder.builder()
                 .withRdsConfigs(cluster.getRdsConfigs())
@@ -170,10 +172,10 @@ public class BlueprintTemplateProcessorTest {
 
     @Test
     public void testMustacheGeneratorForCustomRDSType() throws Exception {
-        String testBlueprint = FileReaderUtils.readFileFromClasspath("blueprints-jackson/bp-mustache-test.bp");
+        String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
         Cluster cluster = cluster();
         cluster.getRdsConfigs().add(rdsConfig("customRds"));
-        BlueprintStackInfo blueprintStackInfo =  new BlueprintStackInfo("hdp", "2.4");
+        BlueprintStackInfo blueprintStackInfo = new BlueprintStackInfo("hdp", "2.4");
 
         BlueprintPreparationObject blueprintPreparationObject = BlueprintPreparationObject.Builder.builder()
                 .withBlueprintView(new BlueprintView(testBlueprint, blueprintStackInfo.getVersion(), blueprintStackInfo.getType()))
@@ -192,6 +194,29 @@ public class BlueprintTemplateProcessorTest {
         assertTrue(result.contains("\"custom.metadata.storage.connector.password\": \"iamsoosecure\""));
         assertTrue(result.contains("\"custom.metadata.storage.connector.databasename\": \"customRds\""));
     }
+
+/*    @Test
+    public void testSharedServiceConfiguration() throws IOException {
+        String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
+        Cluster cluster = cluster();
+
+        BlueprintStackInfo blueprintStackInfo = new BlueprintStackInfo("hdp", "2.4");
+
+        SharedServiceConfigs sharedServiceConfigs = new SharedServiceConfigs();
+        sharedServiceConfigs.setRangerAdminPassword("Passw0rd");
+        sharedServiceConfigs.setAttachedCluster(true);
+        sharedServiceConfigs.setDatalakeCluster(false);
+
+        BlueprintPreparationObject blueprintPreparationObject = BlueprintPreparationObject.Builder.builder()
+                .withBlueprintView(new BlueprintView(testBlueprint, blueprintStackInfo.getVersion(), blueprintStackInfo.getType()))
+                .withGeneralClusterConfigs(generalClusterConfigs(cluster))
+                .withLdapConfig(cluster.getLdapConfig())
+                .withRdsConfigs(cluster.getRdsConfigs())
+                .withSharedServiceConfigs(sharedServiceConfigs)
+                .build();
+
+        String result = underTest.process(testBlueprint, blueprintPreparationObject, Maps.newHashMap());
+    }*/
 
     private Cluster cluster() {
         Cluster cluster = TestUtil.cluster();

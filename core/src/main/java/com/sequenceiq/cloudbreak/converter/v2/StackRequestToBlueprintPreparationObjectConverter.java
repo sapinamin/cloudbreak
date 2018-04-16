@@ -117,21 +117,25 @@ public class StackRequestToBlueprintPreparationObjectConverter extends AbstractC
                     .withKerberosConfig(kerberosConfig)
                     .withSharedServiceConfigs(sharedServiceConfigs)
                     .build();
-        } catch (BlueprintProcessingException e) {
-            throw new CloudbreakServiceException(e.getMessage(), e);
-        } catch (IOException e) {
+        } catch (BlueprintProcessingException | IOException e) {
             throw new CloudbreakServiceException(e.getMessage(), e);
         }
     }
 
     private Blueprint getBlueprint(StackV2Request source, IdentityUser identityUser) {
         Blueprint blueprint;
-        if (Strings.isNullOrEmpty(source.getCluster().getAmbari().getBlueprintName())) {
-            blueprint = blueprintService.get(source.getCluster().getAmbari().getBlueprintId());
-        } else {
-            blueprint = blueprintService.get(source.getCluster().getAmbari().getBlueprintName(), identityUser.getAccount());
-        }
+        blueprint = Strings.isNullOrEmpty(getBlueprintName(source))
+                ? blueprintService.get(getBlueprintId(source))
+                : blueprintService.get(getBlueprintName(source), identityUser.getAccount());
         return blueprint;
+    }
+
+    private String getBlueprintName(StackV2Request source) {
+        return source.getCluster().getAmbari().getBlueprintName();
+    }
+
+    private Long getBlueprintId(StackV2Request source) {
+        return source.getCluster().getAmbari().getBlueprintId();
     }
 
     private FlexSubscription getFlexSubscription(StackV2Request source) {

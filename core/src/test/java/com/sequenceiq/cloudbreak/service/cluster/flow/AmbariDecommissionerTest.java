@@ -26,7 +26,6 @@ import com.google.common.collect.Sets;
 import com.sequenceiq.ambari.client.AmbariClient;
 import com.sequenceiq.cloudbreak.client.HttpClientConfig;
 import com.sequenceiq.cloudbreak.common.type.HostMetadataState;
-import com.sequenceiq.cloudbreak.core.CloudbreakSecuritySetupException;
 import com.sequenceiq.cloudbreak.domain.Blueprint;
 import com.sequenceiq.cloudbreak.domain.Cluster;
 import com.sequenceiq.cloudbreak.domain.HostGroup;
@@ -182,7 +181,7 @@ public class AmbariDecommissionerTest {
     }
 
     @Test
-    public void testVerifyNodeCountWithReplicationFactory() throws CloudbreakSecuritySetupException {
+    public void testVerifyNodeCountWithReplicationFactory() {
 
         String hostGroupName = "hostGroupName";
         String hostname = "hostname";
@@ -224,7 +223,7 @@ public class AmbariDecommissionerTest {
     }
 
     @Test
-    public void testVerifyNodeCountWithoutReplicationFactory() throws CloudbreakSecuritySetupException {
+    public void testVerifyNodeCountWithoutReplicationFactory() {
 
         String hostGroupName = "hostGroupName";
         String hostname = "hostname";
@@ -265,7 +264,7 @@ public class AmbariDecommissionerTest {
     }
 
     @Test
-    public void testVerifyNodeCountWithValidationException() throws CloudbreakSecuritySetupException {
+    public void testVerifyNodeCountWithValidationException() {
         thrown.expect(NotEnoughNodeException.class);
 
         String hostGroupName = "hostGroupName";
