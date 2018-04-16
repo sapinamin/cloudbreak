@@ -148,7 +148,7 @@ public class StackRequestToBlueprintPreparationObjectConverter extends AbstractC
 
     private String getSmartsenseSubscriptionId(StackV2Request source, FlexSubscription flexSubscription) {
         String smartsenseSubscriptionId = null;
-        if (source.getFlexId() != null) {
+        if (source.getFlexId() != null && flexSubscription != null) {
             smartsenseSubscriptionId = flexSubscription.getSubscriptionId();
         }
         return smartsenseSubscriptionId;

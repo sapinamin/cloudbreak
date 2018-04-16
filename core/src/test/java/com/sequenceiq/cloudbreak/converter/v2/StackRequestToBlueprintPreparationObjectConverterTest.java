@@ -1,32 +1,51 @@
 package com.sequenceiq.cloudbreak.converter.v2;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.core.convert.ConversionService;
 
+import com.google.common.collect.Lists;
 import com.sequenceiq.cloudbreak.api.model.FileSystemConfiguration;
 import com.sequenceiq.cloudbreak.api.model.FileSystemRequest;
+import com.sequenceiq.cloudbreak.api.model.InstanceGroupType;
 import com.sequenceiq.cloudbreak.api.model.KerberosRequest;
+import com.sequenceiq.cloudbreak.api.model.SharedServiceRequest;
 import com.sequenceiq.cloudbreak.api.model.v2.AmbariV2Request;
 import com.sequenceiq.cloudbreak.api.model.v2.ClusterV2Request;
+import com.sequenceiq.cloudbreak.api.model.v2.InstanceGroupV2Request;
 import com.sequenceiq.cloudbreak.api.model.v2.StackV2Request;
+import com.sequenceiq.cloudbreak.api.model.v2.TemplateV2Request;
 import com.sequenceiq.cloudbreak.blueprint.BlueprintPreparationObject;
+import com.sequenceiq.cloudbreak.blueprint.BlueprintProcessingException;
 import com.sequenceiq.cloudbreak.blueprint.GeneralClusterConfigsProvider;
 import com.sequenceiq.cloudbreak.blueprint.filesystem.FileSystemConfigurationProvider;
 import com.sequenceiq.cloudbreak.blueprint.sharedservice.SharedServiceConfigsProvider;
+import com.sequenceiq.cloudbreak.blueprint.template.views.HostgroupView;
 import com.sequenceiq.cloudbreak.blueprint.templates.BlueprintStackInfo;
+import com.sequenceiq.cloudbreak.blueprint.templates.GeneralClusterConfigs;
 import com.sequenceiq.cloudbreak.blueprint.utils.StackInfoService;
 import com.sequenceiq.cloudbreak.common.model.user.IdentityUser;
 import com.sequenceiq.cloudbreak.common.service.user.UserFilterField;
@@ -35,6 +54,9 @@ import com.sequenceiq.cloudbreak.domain.FileSystem;
 import com.sequenceiq.cloudbreak.domain.FlexSubscription;
 import com.sequenceiq.cloudbreak.domain.KerberosConfig;
 import com.sequenceiq.cloudbreak.domain.LdapConfig;
+import com.sequenceiq.cloudbreak.domain.RDSConfig;
+import com.sequenceiq.cloudbreak.domain.Stack;
+import com.sequenceiq.cloudbreak.service.CloudbreakServiceException;
 import com.sequenceiq.cloudbreak.service.blueprint.BlueprintService;
 import com.sequenceiq.cloudbreak.service.flex.FlexSubscriptionService;
 import com.sequenceiq.cloudbreak.service.ldapconfig.LdapConfigService;
@@ -45,6 +67,11 @@ import com.sequenceiq.cloudbreak.service.user.UserDetailsService;
 public class StackRequestToBlueprintPreparationObjectConverterTest {
 
     private static final Long DUMMY_LONG = 1L;
+
+    private static final String DUMMY_EXCEPTION_MESSAGE = "some exception message";
+
+    @Rule
+    public final ExpectedException thrown = ExpectedException.none();
 
     @InjectMocks
     private StackRequestToBlueprintPreparationObjectConverter underTest;
@@ -254,6 +281,252 @@ public class StackRequestToBlueprintPreparationObjectConverterTest {
         Assert.assertEquals(defaultFileSystem, result.getFileSystemConfigurationView().get().isDefaultFs());
         verify(conversionService, times(1)).convert(fileSystemRequest, FileSystem.class);
         verify(fileSystemConfigurationProvider, times(1)).fileSystemConfiguration(fileSystem, null);
+    }
+
+    @Test
+    public void testConvertIfRdsConfigNamesAreEmptyThenEmptyRdsConfigsShouldBePlacedInResult() {
+        when(cluster.getRdsConfigNames()).thenReturn(Collections.emptySet());
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertNotNull(result.getRdsConfigs());
+        Assert.assertTrue(result.getRdsConfigs().isEmpty());
+    }
+
+    @Test
+    public void testConvertIfRdsConfigNamesAreNotEmptyThenTheExpectedRdsConfigsShouldBePlacedInResult() {
+        List<String> rdsConfigNamesList = Arrays.asList("first", "second");
+        Set<String> rdsConfigNamesSet = new LinkedHashSet<>(rdsConfigNamesList);
+        Map<String, RDSConfig> rdsConfigs = createRdsConfigKeyValuePairs(rdsConfigNamesList);
+        when(cluster.getRdsConfigNames()).thenReturn(rdsConfigNamesSet);
+        rdsConfigNamesList.forEach(key -> when(rdsConfigService.getPrivateRdsConfig(key, user)).thenReturn(rdsConfigs.get(key)));
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertNotNull(result.getRdsConfigs());
+        Assert.assertEquals(rdsConfigNamesSet.size(), result.getRdsConfigs().size());
+        rdsConfigs.forEach((key, rdsConfig) -> Assert.assertTrue(result.getRdsConfigs().contains(rdsConfig)));
+    }
+
+    @Test
+    public void testConvertWhenBluprintNameIsNullThenStackInfoServiceShouldBeCalledWithExpectedValue() {
+        String blueprintText = "some blueprint text value";
+        Blueprint blueprint = mock(Blueprint.class);
+        when(blueprint.getBlueprintText()).thenReturn(blueprintText);
+        when(ambari.getBlueprintName()).thenReturn(null);
+        when(ambari.getBlueprintId()).thenReturn(DUMMY_LONG);
+        when(blueprintService.get(DUMMY_LONG)).thenReturn(blueprint);
+
+        underTest.convert(source);
+
+        verify(stackInfoService, times(1)).blueprintStackInfo(blueprintText);
+        verify(blueprintService, times(1)).get(DUMMY_LONG);
+        verify(blueprintService, times(0)).get(any(), any());
+    }
+
+    @Test
+    public void testConvertWhenBluprintNameIsEmptyThenStackInfoServiceShouldBeCalledWithExpectedValue() {
+        String blueprintText = "some blueprint text value";
+        Blueprint blueprint = mock(Blueprint.class);
+        when(blueprint.getBlueprintText()).thenReturn(blueprintText);
+        when(ambari.getBlueprintName()).thenReturn("");
+        when(ambari.getBlueprintId()).thenReturn(DUMMY_LONG);
+        when(blueprintService.get(DUMMY_LONG)).thenReturn(blueprint);
+
+        underTest.convert(source);
+
+        verify(stackInfoService, times(1)).blueprintStackInfo(blueprintText);
+        verify(blueprintService, times(1)).get(DUMMY_LONG);
+        verify(blueprintService, times(0)).get(any(), any());
+    }
+
+    @Test
+    public void testConvertWhenBluprintNameIsNotEmptyThenStackInfoServiceShouldBeCalledWithExpectedValue() {
+        String blueprintText = "some blueprint text value";
+        String identityAccount = "account value";
+        String blueprintName = "name of the blueprint";
+        Blueprint blueprint = mock(Blueprint.class);
+        when(blueprint.getBlueprintText()).thenReturn(blueprintText);
+        when(ambari.getBlueprintName()).thenReturn(blueprintName);
+        when(ambari.getBlueprintId()).thenReturn(DUMMY_LONG);
+        when(user.getAccount()).thenReturn(identityAccount);
+        when(blueprintService.get(blueprintName, identityAccount)).thenReturn(blueprint);
+
+        underTest.convert(source);
+
+        verify(stackInfoService, times(1)).blueprintStackInfo(blueprintText);
+        verify(blueprintService, times(0)).get(anyLong());
+        verify(blueprintService, times(1)).get(blueprintName, identityAccount);
+    }
+
+    @Test
+    public void testConvertWhenStackInfoProvidesBpStackInfoThenItsDataShouldBePlacedInResultBlueprintView() {
+        String version = "version data";
+        String type = "type data";
+        BlueprintStackInfo blueprintStackInfo = mock(BlueprintStackInfo.class);
+        when(blueprintStackInfo.getVersion()).thenReturn(version);
+        when(blueprintStackInfo.getType()).thenReturn(type);
+        when(stackInfoService.blueprintStackInfo(any())).thenReturn(blueprintStackInfo);
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertNotNull(result.getBlueprintView());
+        Assert.assertEquals(version, result.getBlueprintView().getVersion());
+        Assert.assertEquals(type, result.getBlueprintView().getType());
+        Assert.assertTrue(result.getStackRepoDetailsHdpVersion().isPresent());
+        Assert.assertEquals(version, result.getStackRepoDetailsHdpVersion().get());
+    }
+
+    @Test
+    public void testConvertWhenInstanceGroupsAreNotProvidedThenInResultThereShouldBeAnEmptyHostGroupView() {
+        when(source.getInstanceGroups()).thenReturn(Collections.emptyList());
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertNotNull(result.getHostgroupViews());
+        Assert.assertTrue(result.getHostgroupViews().isEmpty());
+    }
+
+    @Test
+    public void testConvertWhenInstanceGroupsAreProvidedWithOneValueToCheckInnerValuesInResultThenTheExpectedValuesShouldBeInTheHostGroupView() {
+        List<InstanceGroupV2Request> instanceGroupV2Requests = createInstanceGroupV2Requests(1);
+        HostgroupView hostgroupView = createHostGroupViewFromInstanceRequest(instanceGroupV2Requests.get(0));
+        when(source.getInstanceGroups()).thenReturn(instanceGroupV2Requests);
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertNotNull(result.getHostgroupViews());
+        Assert.assertEquals(instanceGroupV2Requests.size(), result.getHostgroupViews().size());
+        Lists.newArrayList(result.getHostgroupViews()).forEach(view -> {
+            Assert.assertEquals(hostgroupView.getName(), view.getName());
+            Assert.assertEquals(hostgroupView.getVolumeCount(), view.getVolumeCount());
+            Assert.assertEquals(hostgroupView.getInstanceGroupType(), view.getInstanceGroupType());
+            Assert.assertEquals(hostgroupView.getNodeCount(), view.getNodeCount());
+        });
+    }
+
+    @Test
+    public void testConvertWhenGeneralClusterConfigsProviderGivesConfigsInstanceThenThisShouldBeStored() {
+        GeneralClusterConfigs generalClusterConfigs = new GeneralClusterConfigs();
+        when(generalClusterConfigsProvider.generalClusterConfigs(source, user)).thenReturn(generalClusterConfigs);
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertEquals(generalClusterConfigs, result.getGeneralClusterConfigs());
+        verify(generalClusterConfigsProvider, times(1)).generalClusterConfigs(source, user);
+    }
+
+    @Test
+    public void testConvertWhenWhenClusterHasNoSharedServiceThenSharedServiceConfigsProviderShouldBeCalledWithNullDataLakeStack() {
+        String ambariPw = "some password value";
+        when(ambari.getPassword()).thenReturn(ambariPw);
+        when(blueprintService.get(anyLong())).thenReturn(blueprint);
+        when(cluster.getSharedService()).thenReturn(null);
+
+        underTest.convert(source);
+
+        verify(sharedServiceConfigsProvider, times(1)).createSharedServiceConfigs(blueprint, ambariPw, null);
+    }
+
+    @Test
+    public void testConvertWhenWhenClusterHasSharedServiceButItsSharedClusterIsNUllThenSharedServiceConfigsProviderShouldBeCalledWithValidDataLakeStack() {
+        String ambariPw = "some password value";
+        SharedServiceRequest sharedServiceRequest = mock(SharedServiceRequest.class);
+        Stack dataLakeStack = new Stack();
+        when(ambari.getPassword()).thenReturn(ambariPw);
+        when(blueprintService.get(anyLong())).thenReturn(blueprint);
+        when(cluster.getSharedService()).thenReturn(sharedServiceRequest);
+        when(sharedServiceRequest.getSharedCluster()).thenReturn(null);
+        when(stackService.getPublicStack(null, user)).thenReturn(dataLakeStack);
+
+        underTest.convert(source);
+
+        verify(sharedServiceRequest, times(2)).getSharedCluster();
+        verify(sharedServiceConfigsProvider, times(1)).createSharedServiceConfigs(blueprint, ambariPw, dataLakeStack);
+    }
+
+    @Test
+    public void testConvertWhenWhenClusterHasSharedServiceButItsSharedClusterIsEmptyThenSharedServiceConfigsProviderShouldBeCalledWithValidDataLakeStack() {
+        String ambariPw = "some password value";
+        SharedServiceRequest sharedServiceRequest = mock(SharedServiceRequest.class);
+        Stack dataLakeStack = new Stack();
+        when(ambari.getPassword()).thenReturn(ambariPw);
+        when(blueprintService.get(anyLong())).thenReturn(blueprint);
+        when(cluster.getSharedService()).thenReturn(sharedServiceRequest);
+        when(sharedServiceRequest.getSharedCluster()).thenReturn("");
+        when(stackService.getPublicStack("", user)).thenReturn(dataLakeStack);
+
+        underTest.convert(source);
+
+        verify(sharedServiceRequest, times(2)).getSharedCluster();
+        verify(sharedServiceConfigsProvider, times(1)).createSharedServiceConfigs(blueprint, ambariPw, dataLakeStack);
+    }
+
+    @Test
+    public void testConvertWhenWhenClusterHasSharedServiceButItsSharedClusterIsEmptyThenSharedServiceConfigsProviderShouldBeCalledWithNullDataLakeStack() {
+        String ambariPw = "some password value";
+        String sharedClusterValue = "some not empty value";
+        SharedServiceRequest sharedServiceRequest = mock(SharedServiceRequest.class);
+        Stack dataLakeStack = new Stack();
+        when(ambari.getPassword()).thenReturn(ambariPw);
+        when(blueprintService.get(anyLong())).thenReturn(blueprint);
+        when(cluster.getSharedService()).thenReturn(sharedServiceRequest);
+        when(sharedServiceRequest.getSharedCluster()).thenReturn(sharedClusterValue);
+        when(stackService.getPublicStack(sharedClusterValue, user)).thenReturn(dataLakeStack);
+
+        underTest.convert(source);
+
+        verify(sharedServiceRequest, times(1)).getSharedCluster();
+        verify(sharedServiceConfigsProvider, times(1)).createSharedServiceConfigs(blueprint, ambariPw, null);
+    }
+
+    @Test
+    public void testConvertWhenBlueprintProcessingExceptionComesFromSomewhereThenCloudbreakServiceExceptionShouldComeOutside() {
+        when(userDetailsService.getDetails(any(), any())).thenThrow(new BlueprintProcessingException(DUMMY_EXCEPTION_MESSAGE));
+
+        thrown.expect(CloudbreakServiceException.class);
+        thrown.expectMessage(DUMMY_EXCEPTION_MESSAGE);
+
+        underTest.convert(source);
+    }
+
+    @Test
+    public void testConvertWhenIOExceptionComesFromSomewhereThenCloudbreakServiceExceptionShouldComeOutside() throws IOException {
+        when(cluster.getFileSystem()).thenReturn(new FileSystemRequest());
+        when(fileSystemConfigurationProvider.fileSystemConfiguration(any(), any())).thenThrow(new IOException(DUMMY_EXCEPTION_MESSAGE));
+
+        thrown.expect(CloudbreakServiceException.class);
+        thrown.expectMessage(DUMMY_EXCEPTION_MESSAGE);
+
+        underTest.convert(source);
+    }
+
+    private List<InstanceGroupV2Request> createInstanceGroupV2Requests(int quantity) {
+        List<InstanceGroupV2Request> requests = new ArrayList<>(quantity);
+        for (int i = 0; i < quantity; i++) {
+            InstanceGroupV2Request request = new InstanceGroupV2Request();
+            request.setGroup(String.format("group_%d", i));
+            TemplateV2Request template = new TemplateV2Request();
+            template.setVolumeCount(i);
+            request.setTemplate(template);
+            request.setType(InstanceGroupType.CORE);
+            request.setNodeCount(i);
+            requests.add(request);
+        }
+        return requests;
+    }
+
+    private HostgroupView createHostGroupViewFromInstanceRequest(InstanceGroupV2Request request) {
+        return new HostgroupView(
+                request.getGroup(),
+                request.getTemplate().getVolumeCount(),
+                request.getType(),
+                request.getNodeCount());
+    }
+
+    private Map<String, RDSConfig> createRdsConfigKeyValuePairs(List<String> keys) {
+        Map<String, RDSConfig> rdsConfigs = new LinkedHashMap<>(keys.size());
+        keys.forEach(key -> rdsConfigs.put(key, new RDSConfig()));
+        return rdsConfigs;
     }
 
 }
