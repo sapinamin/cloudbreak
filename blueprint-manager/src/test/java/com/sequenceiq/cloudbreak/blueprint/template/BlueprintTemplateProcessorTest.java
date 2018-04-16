@@ -4,6 +4,7 @@ import static com.sequenceiq.cloudbreak.blueprint.filesystem.BlueprintTestUtil.g
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,6 +22,7 @@ import com.sequenceiq.cloudbreak.TestUtil;
 import com.sequenceiq.cloudbreak.api.model.rds.RdsType;
 import com.sequenceiq.cloudbreak.blueprint.BlueprintPreparationObject;
 import com.sequenceiq.cloudbreak.blueprint.nifi.HdfConfigs;
+import com.sequenceiq.cloudbreak.blueprint.sharedservice.SharedServiceConfigs;
 import com.sequenceiq.cloudbreak.blueprint.template.views.BlueprintView;
 import com.sequenceiq.cloudbreak.blueprint.templates.BlueprintStackInfo;
 import com.sequenceiq.cloudbreak.blueprint.templates.GeneralClusterConfigs;
@@ -39,7 +41,7 @@ public class BlueprintTemplateProcessorTest {
     private final BlueprintTemplateProcessor underTest = new BlueprintTemplateProcessor();
 
     @Test
-    public void testMustacheGeneratorWithSimpleUseCase() throws Exception {
+    public void testMustacheGeneratorWithSimpleUseCase() throws IOException {
         String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
@@ -70,7 +72,7 @@ public class BlueprintTemplateProcessorTest {
     }
 
     @Test
-    public void testMustacheGeneratorShouldEscapeNifiHtmlBasedContentsQuotes() throws Exception {
+    public void testMustacheGeneratorShouldEscapeNifiHtmlBasedContentsQuotes() throws IOException {
         String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
@@ -98,7 +100,7 @@ public class BlueprintTemplateProcessorTest {
     }
 
     @Test
-    public void testMustacheGeneratorForRangerRDS() throws Exception {
+    public void testMustacheGeneratorForRangerRDS() throws IOException {
         String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
@@ -123,7 +125,7 @@ public class BlueprintTemplateProcessorTest {
     }
 
     @Test
-    public void testMustacheGeneratorForHiveRDS() throws Exception {
+    public void testMustacheGeneratorForHiveRDS() throws IOException {
         String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
@@ -148,7 +150,7 @@ public class BlueprintTemplateProcessorTest {
     }
 
     @Test
-    public void testMustacheGeneratorForDruidRDS() throws Exception {
+    public void testMustacheGeneratorForDruidRDS() throws IOException {
         String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
 
         Cluster cluster = cluster();
@@ -171,7 +173,7 @@ public class BlueprintTemplateProcessorTest {
     }
 
     @Test
-    public void testMustacheGeneratorForCustomRDSType() throws Exception {
+    public void testMustacheGeneratorForCustomRDSType() throws IOException {
         String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
         Cluster cluster = cluster();
         cluster.getRdsConfigs().add(rdsConfig("customRds"));
@@ -195,7 +197,7 @@ public class BlueprintTemplateProcessorTest {
         assertTrue(result.contains("\"custom.metadata.storage.connector.databasename\": \"customRds\""));
     }
 
-/*    @Test
+    @Test
     public void testSharedServiceConfiguration() throws IOException {
         String testBlueprint = FileReaderUtils.readFileFromClasspath(TEST_BLUEPRINT_FILE);
         Cluster cluster = cluster();
@@ -215,15 +217,14 @@ public class BlueprintTemplateProcessorTest {
                 .withSharedServiceConfigs(sharedServiceConfigs)
                 .build();
 
-        String result = underTest.process(testBlueprint, blueprintPreparationObject, Maps.newHashMap());
-    }*/
+        underTest.process(testBlueprint, blueprintPreparationObject, Maps.newHashMap());
+    }
 
     private Cluster cluster() {
         Cluster cluster = TestUtil.cluster();
         Set<RDSConfig> rdsConfigSet = new HashSet<>();
         rdsConfigSet.add(rdsConfig(RdsType.DRUID.name().toLowerCase()));
-        RDSConfig hiveRds = rdsConfig(RdsType.HIVE.name().toLowerCase());
-        rdsConfigSet.add(hiveRds);
+        rdsConfigSet.add(rdsConfig(RdsType.HIVE.name().toLowerCase()));
         rdsConfigSet.add(rdsConfig(RdsType.RANGER.name().toLowerCase()));
         cluster.setRdsConfigs(rdsConfigSet);
         Map<String, String> inputs = new HashMap<>();
