@@ -101,8 +101,7 @@ public class StackToBlueprintPreparationObjectConverter extends AbstractConversi
             FileSystemConfigurationView fileSystemConfigurationView = null;
             if (source.getCluster().getFileSystem() != null) {
                 fileSystemConfigurationView = new FileSystemConfigurationView(
-                        fileSystemConfigurationProvider.fileSystemConfiguration(fileSystem, source),
-                        fileSystem == null ? false : fileSystem.isDefaultFs());
+                        fileSystemConfigurationProvider.fileSystemConfiguration(fileSystem, source), fileSystem != null && fileSystem.isDefaultFs());
             }
             IdentityUser identityUser = userDetailsService.getDetails(cluster.getOwner(), UserFilterField.USERID);
             Stack dataLakeStack = null;
@@ -125,9 +124,7 @@ public class StackToBlueprintPreparationObjectConverter extends AbstractConversi
                     .withKerberosConfig(cluster.isSecure() ? cluster.getKerberosConfig() : null)
                     .withSharedServiceConfigs(sharedServiceConfigProvider.createSharedServiceConfigs(source, dataLakeStack))
                     .build();
-        } catch (BlueprintProcessingException e) {
-            throw new CloudbreakServiceException(e.getMessage(), e);
-        } catch (IOException e) {
+        } catch (BlueprintProcessingException | IOException e) {
             throw new CloudbreakServiceException(e.getMessage(), e);
         }
     }
