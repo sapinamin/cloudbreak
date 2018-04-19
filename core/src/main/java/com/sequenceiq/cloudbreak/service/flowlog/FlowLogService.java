@@ -17,6 +17,7 @@ import com.sequenceiq.cloudbreak.cloud.event.Selectable;
 import com.sequenceiq.cloudbreak.core.flow2.FlowState;
 import com.sequenceiq.cloudbreak.domain.FlowChainLog;
 import com.sequenceiq.cloudbreak.domain.FlowLog;
+import com.sequenceiq.cloudbreak.domain.StateStatus;
 import com.sequenceiq.cloudbreak.repository.FlowChainLogRepository;
 import com.sequenceiq.cloudbreak.repository.FlowLogRepository;
 import com.sequenceiq.cloudbreak.ha.CloudbreakNodeConfig;
@@ -72,8 +73,7 @@ public class FlowLogService {
     }
 
     private FlowLog finalize(Long stackId, String flowId, String state) {
-        flowLogRepository.finalizeByFlowId(flowId);
-        FlowLog flowLog = new FlowLog(stackId, flowId, state, Boolean.TRUE);
+        FlowLog flowLog = new FlowLog(stackId, flowId, state, StateStatus.SUCCESSFUL);
         flowLog.setCloudbreakNodeId(cloudbreakNodeConfig.getId());
         return flowLogRepository.save(flowLog);
     }
@@ -82,5 +82,11 @@ public class FlowLogService {
         String chainJson = JsonWriter.objectToJson(chain);
         FlowChainLog chainLog = new FlowChainLog(flowChainId, parentFlowChainId, chainJson);
         return flowChainLogRepository.save(chainLog);
+    }
+
+    public void updateLastFlowLogStatus(String flowId, boolean failureEvent) {
+        StateStatus stateStatus = failureEvent ? StateStatus.FAILED : StateStatus.SUCCESSFUL;
+        FlowLog lastFlowLog = flowLogRepository.findFirstByFlowIdOrderByCreatedDesc(flowId);
+        flowLogRepository.updateLastLogStatusInFlow(lastFlowLog.getId(), stateStatus);
     }
 }

@@ -41,6 +41,7 @@ import com.sequenceiq.cloudbreak.core.flow2.stack.provision.StackCreationFlowCon
 import com.sequenceiq.cloudbreak.core.flow2.stack.termination.StackTerminationFlowConfig;
 import com.sequenceiq.cloudbreak.domain.CloudbreakNode;
 import com.sequenceiq.cloudbreak.domain.FlowLog;
+import com.sequenceiq.cloudbreak.domain.StateStatus;
 import com.sequenceiq.cloudbreak.repository.CloudbreakNodeRepository;
 import com.sequenceiq.cloudbreak.repository.FlowLogRepository;
 import com.sequenceiq.cloudbreak.repository.StackRepository;
@@ -255,7 +256,7 @@ public class HeartbeatServiceTest {
         assertEquals(myNewFlowLogs.size(), updatedFlows.size());
         for (FlowLog updatedFlow : updatedFlows) {
             if (invalidFlowLogs.contains(updatedFlow)) {
-                assertTrue(updatedFlow.getFinalized());
+                assertEquals(StateStatus.SUCCESSFUL, updatedFlow.getStateStatus());
                 assertEquals(null, updatedFlow.getCloudbreakNodeId());
             } else {
                 assertEquals(MY_ID, updatedFlow.getCloudbreakNodeId());
@@ -489,7 +490,7 @@ public class HeartbeatServiceTest {
         long stackId = random.nextInt(5000) + from;
         for (int i = 0; i < flowCount; i++) {
             for (int j = 0; j < random.nextInt(99) + 1; j++) {
-                FlowLog flowLog = new FlowLog(stackId + i, "" + flowId + i, "RUNNING", false);
+                FlowLog flowLog = new FlowLog(stackId + i, "" + flowId + i, "RUNNING", StateStatus.PENDING);
                 flowLog.setFlowType(StackCreationFlowConfig.class);
                 flows.add(flowLog);
             }
