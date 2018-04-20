@@ -91,7 +91,6 @@ public class StackToBlueprintPreparationObjectConverter extends AbstractConversi
         try {
             Optional<SmartSenseSubscription> aDefault = smartSenseSubscriptionService.getDefault();
             Cluster cluster = clusterService.getById(source.getCluster().getId());
-            FileSystem fileSystem = cluster.getFileSystem();
             LdapConfig ldapConfig = cluster.getLdapConfig();
             StackRepoDetails hdpRepo = clusterComponentConfigProvider.getHDPRepo(cluster.getId());
             String stackRepoDetailsHdpVersion = hdpRepo != null ? hdpRepo.getHdpVersion() : null;
@@ -100,6 +99,7 @@ public class StackToBlueprintPreparationObjectConverter extends AbstractConversi
             BlueprintStackInfo blueprintStackInfo = stackInfoService.blueprintStackInfo(cluster.getBlueprint().getBlueprintText());
             FileSystemConfigurationView fileSystemConfigurationView = null;
             if (source.getCluster().getFileSystem() != null) {
+                FileSystem fileSystem = cluster.getFileSystem();
                 fileSystemConfigurationView = new FileSystemConfigurationView(
                         fileSystemConfigurationProvider.fileSystemConfiguration(fileSystem, source), fileSystem != null && fileSystem.isDefaultFs());
             }

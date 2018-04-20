@@ -35,6 +35,7 @@ import com.sequenceiq.cloudbreak.cloud.model.component.StackRepoDetails;
 import com.sequenceiq.cloudbreak.core.bootstrap.service.container.postgres.PostgresConfigService;
 import com.sequenceiq.cloudbreak.domain.Blueprint;
 import com.sequenceiq.cloudbreak.domain.Cluster;
+import com.sequenceiq.cloudbreak.domain.FileSystem;
 import com.sequenceiq.cloudbreak.domain.Gateway;
 import com.sequenceiq.cloudbreak.domain.HostGroup;
 import com.sequenceiq.cloudbreak.domain.InstanceMetaData;
@@ -281,5 +282,52 @@ public class StackToBlueprintPreparationObjectConverterTest {
         verify(stackInfoService, times(1)).blueprintStackInfo(BLUEPRINT_TEXT);
     }
 
+    @Test
+    public void testConvertWhenSourceClusterFileSystemIsNullThenFileSystemConfigurationViewShouldBeEmptyInResult() throws IOException {
+        when(cluster.getFileSystem()).thenReturn(null);
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertFalse(result.getFileSystemConfigurationView().isPresent());
+        verify(fileSystemConfigurationProvider, times(0)).fileSystemConfiguration(any(), any());
+    }
+
+    @Test
+    public void testConvertWhenSourceClusterFileSystemIsNotNullButServiceClusterFileSystemNullThenFileSystemConfigurationViewShouldComeFromProvider()
+            throws IOException {
+        Cluster dummyCluster = mock(Cluster.class);
+        when(clusterService.getById(any())).thenReturn(dummyCluster);
+        when(dummyCluster.getBlueprint()).thenReturn(blueprint);
+        when(dummyCluster.getGateway()).thenReturn(gateway);
+        when(dummyCluster.getBlueprintInputs()).thenReturn(blueprintInputs);
+        when(dummyCluster.getFileSystem()).thenReturn(null);
+        when(cluster.getFileSystem()).thenReturn(new FileSystem());
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertTrue(result.getFileSystemConfigurationView().isPresent());
+        Assert.assertFalse(result.getFileSystemConfigurationView().get().isDefaultFs());
+        verify(fileSystemConfigurationProvider, times(1)).fileSystemConfiguration(null, source);
+    }
+
+    @Test
+    public void testConvertWhenSourceClusterFileSystemIsNotNullAndServiceClusterFileSystemNotNullThenFileSystemConfigurationViewShouldComeFromProvider()
+            throws IOException {
+        FileSystem fileSystem = new FileSystem();
+        fileSystem.setDefaultFs(true);
+        Cluster dummyCluster = mock(Cluster.class);
+        when(clusterService.getById(any())).thenReturn(dummyCluster);
+        when(dummyCluster.getBlueprint()).thenReturn(blueprint);
+        when(dummyCluster.getGateway()).thenReturn(gateway);
+        when(dummyCluster.getBlueprintInputs()).thenReturn(blueprintInputs);
+        when(dummyCluster.getFileSystem()).thenReturn(fileSystem);
+        when(cluster.getFileSystem()).thenReturn(new FileSystem());
+
+        BlueprintPreparationObject result = underTest.convert(source);
+
+        Assert.assertTrue(result.getFileSystemConfigurationView().isPresent());
+        Assert.assertTrue(result.getFileSystemConfigurationView().get().isDefaultFs());
+        verify(fileSystemConfigurationProvider, times(1)).fileSystemConfiguration(fileSystem, source);
+    }
 
 }
